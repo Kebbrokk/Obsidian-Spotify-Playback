@@ -180,6 +180,7 @@ class SpotifyPlaybackHelperPlugin extends Plugin {
 }
 
 // Settings Tab
+// Settings Tab
 class SpotifySettingsTab extends PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
@@ -196,6 +197,8 @@ class SpotifySettingsTab extends PluginSettingTab {
       .setDesc("Your Spotify App Client ID")
       .addText((text) =>
         text
+          .inputEl.setAttribute("type", "password"), // 🔒 mask input
+        text
           .setPlaceholder("Enter Spotify Client ID")
           .setValue(this.plugin.settings.clientId)
           .onChange(async (value) => {
@@ -209,6 +212,8 @@ class SpotifySettingsTab extends PluginSettingTab {
       .setDesc("Your Spotify App Client Secret")
       .addText((text) =>
         text
+          .inputEl.setAttribute("type", "password"), // 🔒 mask input
+        text
           .setPlaceholder("Enter Spotify Client Secret")
           .setValue(this.plugin.settings.clientSecret)
           .onChange(async (value) => {
@@ -218,6 +223,7 @@ class SpotifySettingsTab extends PluginSettingTab {
       );
   }
 }
+
 
 // Now Playing View with buttons
 class SpotifyNowPlayingView extends ItemView {
