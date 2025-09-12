@@ -1,6 +1,6 @@
 {
-  "id": "spotify-playback-helper",
-  "name": "Spotify Playback Helper",
+  "id": "spotify-playback",
+  "name": "Spotify Playback",
   "version": "0.1.0",
   "minAppVersion": "0.15.0",
   "author": "Kebb",
