@@ -19,7 +19,7 @@ Spotify Playback Features
     You will need the Client ID and Client Secret when trying to connect your Spotify to Obsidian.
 
 Open your plugins folder
-Drag and drop the plugin into your plugins folder.
-Enable it in the Community Plugins Settings
-Copy over your Client ID and Client Secret [Remember to keep these hidden]
+- Drag and drop the plugin into your plugins folder.
+- Enable it in the Community Plugins Settings
+-Copy over your Client ID and Client Secret [Remember to keep these hidden]
     - The plugin masks the string of digits for some privacy.
