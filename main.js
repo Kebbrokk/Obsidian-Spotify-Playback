@@ -8,9 +8,9 @@ const SPOTIFY_SCOPES = [
 
 const NOW_PLAYING_VIEW_TYPE = "spotify-now-playing-view";
 
-class SpotifyPlaybackHelperPlugin extends Plugin {
+class SpotifyPlaybackPlugin extends Plugin {
   async onload() {
-    console.log("Spotify Playback Helper loaded!");
+    console.log("Spotify Playback loaded!");
 
     await this.loadSettings();
 
@@ -52,7 +52,7 @@ class SpotifyPlaybackHelperPlugin extends Plugin {
 
   onunload() {
     this.app.workspace.detachLeavesOfType(NOW_PLAYING_VIEW_TYPE);
-    new Notice("Spotify Playback Helper unloaded!");
+    new Notice("Spotify Playback unloaded!");
   }
 
   async activateNowPlayingView() {
@@ -190,7 +190,7 @@ class SpotifySettingsTab extends PluginSettingTab {
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    containerEl.createEl("h2", { text: "Spotify Playback Helper Settings" });
+    containerEl.createEl("h2", { text: "Spotify Playback Settings" });
 
     new Setting(containerEl)
       .setName("Client ID")
@@ -314,5 +314,5 @@ class SpotifyNowPlayingView extends ItemView {
 }
 
 module.exports = {
-  default: SpotifyPlaybackHelperPlugin,
+  default: SpotifyPlaybackPlugin,
 };
