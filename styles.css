@@ -1,0 +1,14 @@
+/* Sidebar styles for Spotify playback helper */
+/* Minimal styles for the settings and control view */
+.spotify-playback-helper .status {
+  padding: 8px;
+  font-size: 13px;
+}
+.spotify-playback-helper .controls {
+  display: flex;
+  gap: 8px;
+  padding: 8px 0;
+}
+.spotify-playback-helper input[type="text"] {
+  width: 100%;
+}
