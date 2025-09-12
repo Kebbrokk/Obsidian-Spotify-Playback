@@ -33,10 +33,10 @@ Future Features
 - Copy over your Client ID and Client Secret [Remember to keep these hidden]
     - The plugin masks the string of digits for some privacy.
 
-Open your terminal and search for Spotify Playback Helper: Login to Spotify
+Open your terminal and search for Spotify Playback: Login to Spotify
 - This will open up your browser and ask for permission to sync to Spotify
 - Choose Obsidian as your application to open. [You do not need to click the Always Use option.]
-- Once connected open your terminal and search for Spotify Playback Helper: Open Now Playing Sidebar.
+- Once connected open your terminal and search for Spotify Playback: Open Now Playing Sidebar.
 - This will allow for the plugin to be placed on either sidebar for viewing.
 - You can also use hotkeys and terminal commands to play spotify tracks.
 
