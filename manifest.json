@@ -3,5 +3,9 @@
   "name": "Spotify Playback",
   "author": "Kebb",
   "description": "Spotify Playback. View Album Art, Media controls.",
+  "version": 1,
+  "minAppVersion": 1,
+  "isDesktopOnly": true,
   "repo": "Kebbrokk/Obsidian-Spotify-Playback"
+
 }
