@@ -14,7 +14,6 @@ Spotify Playback Features
    - Updated Callback links and requirements
    - Button States updates
    - Track Time updates in real Time
-        - Behind the scenes is still 5 seconds, but the UI shows local realtime updates.
 
 
 Future Features
