@@ -6,22 +6,29 @@ Allow for Spotify to be played back through Obsidian.
 Spotify Playback Features
    - Album Art
    - Track Name and Artist
-   - Player Controls [Play / Pause], [Prev],[Next]
+   - Player Controls
+   - Track Time
+   - Toggleable Settings
+   - Interal Server for Token requests
+        - There is now a button for token resets
+   - Updated Callback links and requirements
+   - Button States updates
+   - Track Time updates in real Time
+        - Behind the scenes is still 5 seconds, but the UI shows local realtime updates.
 
 
 Future Features
-- Track Time
-- Toggled settings: Album Art, Track Time
 - Different Themes for Dark / Light. 
 - Better UI
 - Search for different categories.
 - To load the plugin into the sidebar (If you accidently disable then re-enable plugin.)
+- Data indentifiers that allow a history of tracks played, time listened, and amount played
 
 # Instructions
     Create a Spotify Developer Account [[https://developer.spotify.com/dashboard]]
      - Create App
      Follow steps to fill in your basic Information. 
-      - Set your Redirect URI to obsidian://spotify/auth
+      - Set your Redirect URI to http://127.0.0.1:8888/callback
       - API's Used
         - Web API
         - Web Playback SDK
