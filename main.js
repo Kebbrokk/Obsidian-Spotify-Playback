@@ -225,7 +225,7 @@ class SpotifyView extends ItemView {
     this.repeatBtn.onclick = () => this.setRepeat(this.currentRepeat === "off" ? "context" : "off");
 
     await this.refreshNowPlaying();
-    this.interval = setInterval(() => this.refreshNowPlaying(), 5000);
+    this.interval = setInterval(() => this.refreshNowPlaying(), 1000);
   }
 
   async onClose() {
