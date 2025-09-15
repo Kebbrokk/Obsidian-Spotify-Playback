@@ -7,6 +7,7 @@ Spotify Playback Features
    - Album Art
    - Track Name and Artist
    - Player Controls
+   - Track Time
    - Toggleable Settings
    - Interal Server for Token requests
         - There is now a button for token resets
