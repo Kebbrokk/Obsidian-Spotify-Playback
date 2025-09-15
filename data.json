@@ -5,8 +5,11 @@
   "refreshToken": "",
   "showAlbumArt": true,
   "showTrackTime": true,
+  "showControls": true,
+  "showButtons": true,
   "showShuffle": true,
   "showRepeat": true,
-  "showPrevNext": true,
-  "showVolume": true
+  "showPrevious": true,
+  "showNext": true,
+  "showPrevNext": true
 }
