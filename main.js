@@ -1,267 +1,153 @@
-const { Plugin, PluginSettingTab, Setting, Notice, ItemView } = require("obsidian");
+const { Plugin, PluginSettingTab, Setting, ItemView, WorkspaceLeaf, requestUrl, Notice } = require("obsidian");
 const http = require("http");
-const { shell } = require("electron");
 
-const VIEW_TYPE_SPOTIFY = "spotify-now-playing";
+const VIEW_TYPE_SPOTIFY = "spotify-playback-view";
 
-class SpotifyPlaybackHelper extends Plugin {
+module.exports = class SpotifyPlaybackHelper extends Plugin {
   async onload() {
-    console.log("Spotify Playback Helper: loading");
+    console.log("Spotify Playback Helper loaded");
 
     await this.loadSettings();
-    this.addSettingTab(new SpotifySettingsTab(this.app, this));
 
     this.registerView(
       VIEW_TYPE_SPOTIFY,
-      (leaf) => new SpotifyNowPlayingView(leaf, this)
+      (leaf) => new SpotifyView(leaf, this)
     );
 
-    this.addRibbonIcon("music", "Open Spotify Now Playing", () => {
+    this.addRibbonIcon("music", "Spotify Playback", () => {
       this.activateView();
     });
 
-    this.addCommand({
-      id: "open-spotify-now-playing",
-      name: "Open Spotify Now Playing",
-      callback: () => this.activateView(),
-    });
+    this.addSettingTab(new SpotifySettingTab(this.app, this));
+
+    // Auto-refresh every 50 min
+    this.registerInterval(window.setInterval(() => {
+      if (this.settings.refreshToken) {
+        this.refreshAccessToken();
+      }
+    }, 50 * 60 * 1000));
   }
 
-  async onunload() {
+  onunload() {
+    console.log("Spotify Playback Helper unloaded");
     this.app.workspace.detachLeavesOfType(VIEW_TYPE_SPOTIFY);
   }
 
   async activateView() {
     this.app.workspace.detachLeavesOfType(VIEW_TYPE_SPOTIFY);
-    const leaf = this.app.workspace.getRightLeaf(false);
-    await leaf.setViewState({ type: VIEW_TYPE_SPOTIFY, active: true });
-    this.app.workspace.revealLeaf(leaf);
+    await this.app.workspace.getRightLeaf(false).setViewState({
+      type: VIEW_TYPE_SPOTIFY,
+      active: true,
+    });
   }
 
   async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    this.settings = Object.assign(
+      {
+        clientId: "",
+        clientSecret: "",
+        accessToken: "",
+        refreshToken: "",
+        showAlbumArt: true,
+        showTrackTime: true,
+        showControls: true,
+      },
+      await this.loadData()
+    );
   }
 
   async saveSettings() {
     await this.saveData(this.settings);
   }
 
-  async refreshAccessToken() {
-    if (!this.settings.refreshToken) return false;
-    try {
-      const res = await fetch("https://accounts.spotify.com/api/token", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          "Authorization":
-            "Basic " +
-            Buffer.from(
-              this.settings.clientId + ":" + this.settings.clientSecret
-            ).toString("base64"),
-        },
-        body: new URLSearchParams({
-          grant_type: "refresh_token",
-          refresh_token: this.settings.refreshToken,
-        }),
-      });
-      const data = await res.json();
-      if (data.access_token) {
-        this.settings.accessToken = data.access_token;
-        await this.saveSettings();
-        return true;
-      } else {
-        console.error("Failed to refresh Spotify token:", data);
-        return false;
-      }
-    } catch (err) {
-      console.error("Spotify refresh token error:", err);
-      return false;
-    }
-  }
-
-  async spotifyApiCall(method, endpoint, body) {
-    if (!this.settings.accessToken) {
-      const refreshed = await this.refreshAccessToken();
-      if (!refreshed) {
-        new Notice("Spotify access token missing. Please reset it.");
-        return null;
-      }
-    }
-
-    try {
-      const res = await fetch(`https://api.spotify.com/v1/${endpoint}`, {
-        method,
-        headers: {
-          "Authorization": `Bearer ${this.settings.accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: body ? JSON.stringify(body) : undefined,
-      });
-      if (!res.ok) {
-        console.error("Spotify API error", await res.text());
-        return null;
-      }
-      return await res.json();
-    } catch (e) {
-      console.error("Spotify API call failed", e);
-      return null;
-    }
-  }
-
-  async startAuthFlow() {
+  async beginAuth() {
     if (!this.settings.clientId || !this.settings.clientSecret) {
-      new Notice("Please set your Spotify Client ID and Secret first.");
+      new Notice("Please set Client ID and Secret first.");
       return;
     }
 
     const redirectUri = "http://127.0.0.1:8888/callback";
-    const scope =
-      "user-read-playback-state user-modify-playback-state user-read-currently-playing";
+    const scopes = "user-read-playback-state user-modify-playback-state user-read-currently-playing";
+    const authUrl = `https://accounts.spotify.com/authorize?client_id=${this.settings.clientId}&response_type=code&redirect_uri=${encodeURIComponent(
+      redirectUri
+    )}&scope=${encodeURIComponent(scopes)}`;
 
+    window.open(authUrl);
+    new Notice("Opened Spotify login in browser...");
+
+    // Local server to catch the redirect
     const server = http.createServer(async (req, res) => {
       if (req.url.startsWith("/callback")) {
-        const url = new URL(req.url, "http://127.0.0.1:8888");
-        const code = url.searchParams.get("code");
+        const params = new URL("http://127.0.0.1:8888" + req.url).searchParams;
+        const code = params.get("code");
 
-        if (code) {
-          try {
-            const tokenRes = await fetch("https://accounts.spotify.com/api/token", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/x-www-form-urlencoded",
-                Authorization:
-                  "Basic " +
-                  Buffer.from(
-                    this.settings.clientId + ":" + this.settings.clientSecret
-                  ).toString("base64"),
-              },
-              body: new URLSearchParams({
-                grant_type: "authorization_code",
-                code: code,
-                redirect_uri: redirectUri,
-              }),
-            });
-
-            const data = await tokenRes.json();
-            console.log("Token response:", data);
-
-            if (data.access_token) {
-              this.settings.accessToken = data.access_token;
-              this.settings.refreshToken = data.refresh_token;
-              await this.saveSettings();
-
-              res.writeHead(200, { "Content-Type": "text/html" });
-              res.end("<h1>Spotify login successful. You may now close this tab.</h1>");
-
-              new Notice("Spotify login successful!");
-            } else {
-              res.writeHead(400, { "Content-Type": "text/html" });
-              res.end("<h1>Spotify login failed. Check Obsidian logs.</h1>");
-              new Notice("Spotify login failed.");
-            }
-          } catch (err) {
-            console.error("Auth error:", err);
-            new Notice("Spotify auth failed.");
-          }
-        }
-
+        res.writeHead(200, { "Content-Type": "text/html" });
+        res.end("<h2>Spotify Login successful! You can close this tab.</h2>");
         server.close();
+
+        // Exchange code for tokens
+        try {
+          const tokenRes = await requestUrl({
+            url: "https://accounts.spotify.com/api/token",
+            method: "POST",
+            body: new URLSearchParams({
+              grant_type: "authorization_code",
+              code,
+              redirect_uri: redirectUri,
+              client_id: this.settings.clientId,
+              client_secret: this.settings.clientSecret,
+            }).toString(),
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          });
+
+          const data = tokenRes.json;
+          this.settings.accessToken = data.access_token;
+          this.settings.refreshToken = data.refresh_token;
+          await this.saveSettings();
+          new Notice("Spotify login successful!");
+        } catch (err) {
+          console.error("Auth failed:", err);
+          new Notice("Spotify auth failed (check console).");
+        }
       }
     });
-
-    server.listen(8888, "127.0.0.1");
-
-    const authUrl = `https://accounts.spotify.com/authorize?client_id=${encodeURIComponent(
-      this.settings.clientId
-    )}&response_type=code&redirect_uri=${encodeURIComponent(
-      redirectUri
-    )}&scope=${encodeURIComponent(scope)}`;
-    shell.openExternal(authUrl);
+    server.listen(8888);
   }
-}
 
-const DEFAULT_SETTINGS = {
-  clientId: "",
-  clientSecret: "",
-  accessToken: "",
-  refreshToken: "",
-  showAlbumArt: true,
-  showTrackTime: true,
-  showShuffle: true,
-  showRepeat: true,
-  showPrevNext: true,
-  showVolume: true,
+  async refreshAccessToken() {
+    if (!this.settings.refreshToken) return;
+    try {
+      const res = await requestUrl({
+        url: "https://accounts.spotify.com/api/token",
+        method: "POST",
+        body: new URLSearchParams({
+          grant_type: "refresh_token",
+          refresh_token: this.settings.refreshToken,
+          client_id: this.settings.clientId,
+          client_secret: this.settings.clientSecret,
+        }).toString(),
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      });
+
+      const data = res.json;
+      this.settings.accessToken = data.access_token;
+      await this.saveSettings();
+      console.log("Spotify token refreshed");
+    } catch (err) {
+      console.error("Failed to refresh token", err);
+    }
+  }
 };
 
-class SpotifySettingsTab extends PluginSettingTab {
-  constructor(app, plugin) {
-    super(app, plugin);
-    this.plugin = plugin;
-  }
+/* ---------------- VIEW ---------------- */
 
-  display() {
-    const { containerEl } = this;
-    containerEl.empty();
-    containerEl.createEl("h2", { text: "Spotify Playback Helper Settings" });
-
-    new Setting(containerEl)
-      .setName("Client ID")
-      .setDesc("Your Spotify Developer Client ID")
-      .addText((text) => {
-        text.inputEl.setAttribute("type", "password");
-        text.setValue(this.plugin.settings.clientId).onChange(async (value) => {
-          this.plugin.settings.clientId = value;
-          await this.plugin.saveSettings();
-        });
-      });
-
-    new Setting(containerEl)
-      .setName("Client Secret")
-      .setDesc("Your Spotify Developer Client Secret")
-      .addText((text) => {
-        text.inputEl.setAttribute("type", "password");
-        text.setValue(this.plugin.settings.clientSecret).onChange(async (value) => {
-          this.plugin.settings.clientSecret = value;
-          await this.plugin.saveSettings();
-        });
-      });
-
-    new Setting(containerEl)
-      .setName("Reset Access Token")
-      .setDesc("Re-authenticate with Spotify")
-      .addButton((btn) =>
-        btn.setButtonText("Reset").onClick(async () => {
-          this.plugin.settings.accessToken = "";
-          this.plugin.settings.refreshToken = "";
-          await this.plugin.saveSettings();
-          this.plugin.startAuthFlow();
-        })
-      );
-
-    containerEl.createEl("h3", { text: "UI Options" });
-
-    this.addToggle(containerEl, "Show Album Art", "showAlbumArt");
-    this.addToggle(containerEl, "Show Track Time", "showTrackTime");
-    this.addToggle(containerEl, "Show Shuffle Button", "showShuffle");
-    this.addToggle(containerEl, "Show Repeat Button", "showRepeat");
-    this.addToggle(containerEl, "Show Previous/Next Buttons", "showPrevNext");
-    this.addToggle(containerEl, "Show Volume Slider", "showVolume");
-  }
-
-  addToggle(containerEl, name, key) {
-    new Setting(containerEl).setName(name).addToggle((toggle) =>
-      toggle.setValue(this.plugin.settings[key]).onChange(async (value) => {
-        this.plugin.settings[key] = value;
-        await this.plugin.saveSettings();
-      })
-    );
-  }
-}
-
-class SpotifyNowPlayingView extends ItemView {
+class SpotifyView extends ItemView {
   constructor(leaf, plugin) {
     super(leaf);
     this.plugin = plugin;
+    this.currentShuffle = false;
+    this.currentRepeat = "off";
+    this.isPlaying = false;
   }
 
   getViewType() {
@@ -269,99 +155,63 @@ class SpotifyNowPlayingView extends ItemView {
   }
 
   getDisplayText() {
-    return "Spotify Now Playing";
+    return "Spotify Playback";
   }
 
   async onOpen() {
-    this.container = this.containerEl.children[1];
-    this.container.empty();
+    const container = this.containerEl.children[1];
+    container.empty();
 
-    if (this.plugin.settings.showAlbumArt) {
-      this.albumEl = this.container.createEl("img", {
-        attr: { src: "", style: "max-width:100%; border-radius:8px;" },
+    this.albumEl = container.createEl("img", { cls: "spotify-album-art" });
+    this.trackEl = container.createEl("div", { text: "Track: -" });
+    this.artistEl = container.createEl("div", { text: "Artist: -" });
+    this.timeEl = container.createEl("div", { text: "0:00 / 0:00" });
+
+    // Controls
+    this.controlsEl = container.createDiv("spotify-controls");
+    this.playBtn = this.controlsEl.createEl("button", { text: "▶️" });
+    this.prevBtn = this.controlsEl.createEl("button", { text: "⏮️" });
+    this.nextBtn = this.controlsEl.createEl("button", { text: "⏭️" });
+    this.shuffleBtn = this.controlsEl.createEl("button", { text: "🔀" });
+    this.repeatBtn = this.controlsEl.createEl("button", { text: "🔁" });
+
+    this.playBtn.addEventListener("click", () => this.togglePlay());
+    this.prevBtn.addEventListener("click", () => this.apiCall("previous"));
+    this.nextBtn.addEventListener("click", () => this.apiCall("next"));
+    this.shuffleBtn.addEventListener("click", () =>
+      this.setShuffle(!this.currentShuffle)
+    );
+    this.repeatBtn.addEventListener("click", () =>
+      this.setRepeat(this.currentRepeat === "off" ? "context" : "off")
+    );
+
+    this.refreshInterval = setInterval(() => this.refresh(), 1000);
+  }
+
+  async onClose() {
+    clearInterval(this.refreshInterval);
+  }
+
+  async refresh() {
+    if (!this.plugin.settings.accessToken) return;
+
+    try {
+      const res = await requestUrl({
+        url: "https://api.spotify.com/v1/me/player",
+        headers: { Authorization: `Bearer ${this.plugin.settings.accessToken}` },
       });
-    }
 
-    this.trackEl = this.container.createEl("div", { text: "Track: -" });
-    this.artistEl = this.container.createEl("div", { text: "Artist: -" });
-
-    if (this.plugin.settings.showTrackTime) {
-      this.timeEl = this.container.createEl("div", { text: "0:00 / 0:00" });
-    }
-
-    this.controlsEl = this.container.createEl("div", { cls: "spotify-controls" });
-
-    // Prev / Play / Next
-    if (this.plugin.settings.showPrevNext) {
-      this.prevBtn = this.controlsEl.createEl("button", { text: "⏮️" });
-      this.prevBtn.onclick = () =>
-        this.plugin.spotifyApiCall("POST", "me/player/previous");
-
-      this.playPauseBtn = this.controlsEl.createEl("button", { text: "▶️" });
-      this.playPauseBtn.onclick = async () => {
-        if (this.isPlaying) {
-          await this.plugin.spotifyApiCall("PUT", "me/player/pause");
-          this.isPlaying = false;
-        } else {
-          await this.plugin.spotifyApiCall("PUT", "me/player/play");
-          this.isPlaying = true;
-        }
+      if (res.status === 204) {
+        this.trackEl.setText("Track: -");
+        this.artistEl.setText("Artist: -");
+        this.timeEl.setText("0:00 / 0:00");
+        this.albumEl.src = "";
+        this.isPlaying = false;
         this.updateButtonStates();
-      };
+        return;
+      }
 
-      this.nextBtn = this.controlsEl.createEl("button", { text: "⏭️" });
-      this.nextBtn.onclick = () =>
-        this.plugin.spotifyApiCall("POST", "me/player/next");
-    }
-
-    // Shuffle / Repeat
-    if (this.plugin.settings.showShuffle) {
-      this.shuffleBtn = this.controlsEl.createEl("button", { text: "🔀" });
-      this.shuffleBtn.onclick = async () => {
-        const state = !this.currentShuffle;
-        await this.plugin.spotifyApiCall(
-          "PUT",
-          `me/player/shuffle?state=${state}`
-        );
-        this.currentShuffle = state;
-        this.updateButtonStates();
-      };
-    }
-
-    if (this.plugin.settings.showRepeat) {
-      this.repeatBtn = this.controlsEl.createEl("button", { text: "🔁" });
-      this.repeatBtn.onclick = async () => {
-        const nextState =
-          this.currentRepeat === "off"
-            ? "context"
-            : this.currentRepeat === "context"
-            ? "track"
-            : "off";
-        await this.plugin.spotifyApiCall(
-          "PUT",
-          `me/player/repeat?state=${nextState}`
-        );
-        this.currentRepeat = nextState;
-        this.updateButtonStates();
-      };
-    }
-
-    // Volume
-    if (this.plugin.settings.showVolume) {
-      this.volumeSlider = this.controlsEl.createEl("input", {
-        type: "range",
-        attr: { min: 0, max: 100, value: 50 },
-      });
-      this.volumeSlider.onchange = (e) =>
-        this.plugin.spotifyApiCall(
-          "PUT",
-          `me/player/volume?volume_percent=${e.target.value}`
-        );
-    }
-
-    // Refresh loop
-    this.refreshInterval = setInterval(async () => {
-      const data = await this.plugin.spotifyApiCall("GET", "me/player");
+      const data = res.json;
       if (data && data.item) {
         this.trackEl.setText("Track: " + data.item.name);
         this.artistEl.setText(
@@ -380,26 +230,79 @@ class SpotifyNowPlayingView extends ItemView {
           );
         }
 
-        // Sync shuffle / repeat / play state
         this.currentShuffle = data.shuffle_state;
         this.currentRepeat = data.repeat_state;
         this.isPlaying = data.is_playing;
         this.updateButtonStates();
       }
-    }, 1000);
+    } catch (err) {
+      console.error("Spotify refresh error:", err);
+    }
   }
 
   updateButtonStates() {
-    if (this.shuffleBtn) {
-      this.shuffleBtn.style.opacity = this.currentShuffle ? "1" : "0.4";
+    this.playBtn.setText(this.isPlaying ? "⏸️" : "▶️");
+    this.shuffleBtn.setText(this.currentShuffle ? "🔀✅" : "🔀");
+    this.repeatBtn.setText(
+      this.currentRepeat === "off"
+        ? "🔁"
+        : this.currentRepeat === "track"
+        ? "🔂"
+        : "🔁✅"
+    );
+  }
+
+  async togglePlay() {
+    if (this.isPlaying) {
+      await this.apiCall("pause");
+    } else {
+      await this.apiCall("play");
     }
-    if (this.repeatBtn) {
-      this.repeatBtn.style.opacity = this.currentRepeat !== "off" ? "1" : "0.4";
-      this.repeatBtn.textContent =
-        this.currentRepeat === "track" ? "🔂" : "🔁";
+  }
+
+  async apiCall(action) {
+    let endpoint = "";
+    if (action === "next") endpoint = "next";
+    if (action === "previous") endpoint = "previous";
+    if (action === "play") endpoint = "play";
+    if (action === "pause") endpoint = "pause";
+
+    try {
+      await requestUrl({
+        url: `https://api.spotify.com/v1/me/player/${endpoint}`,
+        method: "POST",
+        headers: { Authorization: `Bearer ${this.plugin.settings.accessToken}` },
+      });
+    } catch (err) {
+      console.error("Spotify API call failed:", err);
     }
-    if (this.playPauseBtn) {
-      this.playPauseBtn.textContent = this.isPlaying ? "⏸️" : "▶️";
+  }
+
+  async setShuffle(state) {
+    try {
+      await requestUrl({
+        url: `https://api.spotify.com/v1/me/player/shuffle?state=${state}`,
+        method: "PUT",
+        headers: { Authorization: `Bearer ${this.plugin.settings.accessToken}` },
+      });
+      this.currentShuffle = state;
+      this.updateButtonStates();
+    } catch (err) {
+      console.error("Failed to set shuffle:", err);
+    }
+  }
+
+  async setRepeat(mode) {
+    try {
+      await requestUrl({
+        url: `https://api.spotify.com/v1/me/player/repeat?state=${mode}`,
+        method: "PUT",
+        headers: { Authorization: `Bearer ${this.plugin.settings.accessToken}` },
+      });
+      this.currentRepeat = mode;
+      this.updateButtonStates();
+    } catch (err) {
+      console.error("Failed to set repeat:", err);
     }
   }
 
@@ -408,10 +311,76 @@ class SpotifyNowPlayingView extends ItemView {
     const s = seconds % 60;
     return `${m}:${s.toString().padStart(2, "0")}`;
   }
-
-  async onClose() {
-    clearInterval(this.refreshInterval);
-  }
 }
 
-module.exports = SpotifyPlaybackHelper;
+/* ---------------- SETTINGS ---------------- */
+
+class SpotifySettingTab extends PluginSettingTab {
+  constructor(app, plugin) {
+    super(app, plugin);
+    this.plugin = plugin;
+  }
+
+  display() {
+    const { containerEl } = this;
+    containerEl.empty();
+
+    new Setting(containerEl)
+      .setName("Client ID")
+      .setDesc("Spotify App Client ID")
+      .addText((text) =>
+        text.setValue(this.plugin.settings.clientId).onChange(async (value) => {
+          this.plugin.settings.clientId = value;
+          await this.plugin.saveSettings();
+        })
+      );
+
+    new Setting(containerEl)
+      .setName("Client Secret")
+      .setDesc("Spotify App Client Secret")
+      .addText((text) =>
+        text.setValue(this.plugin.settings.clientSecret).onChange(async (value) => {
+          this.plugin.settings.clientSecret = value;
+          await this.plugin.saveSettings();
+        })
+      );
+
+    new Setting(containerEl)
+      .setName("Login with Spotify")
+      .setDesc("Authenticate with Spotify")
+      .addButton((btn) =>
+        btn.setButtonText("Login").onClick(async () => {
+          await this.plugin.beginAuth();
+        })
+      );
+
+    containerEl.createEl("h3", { text: "Display Options" });
+
+    new Setting(containerEl)
+      .setName("Show Album Art")
+      .addToggle((toggle) =>
+        toggle.setValue(this.plugin.settings.showAlbumArt).onChange(async (value) => {
+          this.plugin.settings.showAlbumArt = value;
+          await this.plugin.saveSettings();
+        })
+      );
+
+    new Setting(containerEl)
+      .setName("Show Track Time")
+      .addToggle((toggle) =>
+        toggle.setValue(this.plugin.settings.showTrackTime).onChange(async (value) => {
+          this.plugin.settings.showTrackTime = value;
+          await this.plugin.saveSettings();
+        })
+      );
+
+    new Setting(containerEl)
+      .setName("Show Controls")
+      .addToggle((toggle) =>
+        toggle.setValue(this.plugin.settings.showControls).onChange(async (value) => {
+          this.plugin.settings.showControls = value;
+          await this.plugin.saveSettings();
+        })
+      );
+  }
+}
