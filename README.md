@@ -58,6 +58,3 @@ If you have any questions, or requests please message me on GitHub.
     - Mostly they'll be posted through the week, as I work long hours on the weekend. Each update will probably have a test phase before I push it to the live branch. 
 - How often does this API refresh?
     - Spotify limits the refresh to 1 hour. This app automatically refreshes the token needed.
-- Why does my album art take longer to reset when a new track plays?
-    - I have it set to update 5 seconds after the track plays. It can be changed to quicker by changing the poll rate. 
-        - I'll leave that change to those who know where to look and edit.
