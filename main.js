@@ -276,8 +276,6 @@ class SpotifyNowPlayingView extends ItemView {
     this.container = this.containerEl.children[1];
     this.container.empty();
 
-    this.container.createEl("h3", { text: "Now Playing" });
-
     if (this.plugin.settings.showAlbumArt) {
       this.albumEl = this.container.createEl("img", {
         attr: { src: "", style: "max-width:100%; border-radius:8px;" },
@@ -388,7 +386,7 @@ class SpotifyNowPlayingView extends ItemView {
         this.isPlaying = data.is_playing;
         this.updateButtonStates();
       }
-    }, 3000);
+    }, 1000);
   }
 
   updateButtonStates() {
