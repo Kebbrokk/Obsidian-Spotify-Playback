@@ -1,6 +1,12 @@
 {
-  "clientId":"",
+  "clientId": "",
   "clientSecret": "",
   "accessToken": "",
-  "refreshToken": ""
+  "refreshToken": "",
+  "showAlbumArt": true,
+  "showTrackTime": true,
+  "showShuffle": true,
+  "showRepeat": true,
+  "showPrevNext": true,
+  "showVolume": true
 }
