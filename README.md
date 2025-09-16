@@ -51,9 +51,6 @@ If you are playing something spotify it will show up. If not open spotify and se
 If you have any questions, or requests please message me on GitHub.
 
 # FAQ
-- Where can I contact you outside of GitHub, for quicker responses?
-   - I set up a discord that will update on any github activity, and will allow for any future requests or project ideas.
-   https://discord.gg/9EtXUksk3f (It's currently barebones, as I am still fixing the plugin and creating channels.)
 - How often are updates?
     - Mostly they'll be posted through the week, as I work long hours on the weekend. Each update will probably have a test phase before I push it to the live branch. 
 - How often does this API refresh?
