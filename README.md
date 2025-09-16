@@ -9,7 +9,7 @@ Spotify Playback Features
    - Player Controls
    - Track Time
    - Toggleable Settings
-   - Interal Server for Token requests
+   - Internal Server for Token requests
         - There is now a button for token resets
    - Updated Callback links and requirements
    - Button States updates
