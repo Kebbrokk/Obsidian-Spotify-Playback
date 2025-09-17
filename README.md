@@ -3,6 +3,8 @@ Allow for Spotify to be played back through Obsidian.
 
 **This Plugin requires a Spotify Premium and Developer account**
 
+![alt text](https://github.com/Kebbrokk/Obsidian-Spotify-Playback/blob/main/images/SpotifyPlayback.PNG)
+
 Spotify Playback Features
    - Album Art
    - Track Name and Artist
