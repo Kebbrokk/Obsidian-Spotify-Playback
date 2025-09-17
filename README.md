@@ -5,6 +5,10 @@ Allow for Spotify to be played back through Obsidian.
 
 ![alt text](https://github.com/Kebbrokk/Obsidian-Spotify-Playback/blob/main/images/SpotifyPlayback.PNG)
 
+![alt text](https://github.com/Kebbrokk/Obsidian-Spotify-Playback/blob/main/images/SpotifyPlaybackGif.gif)
+
+![alt text](https://github.com/Kebbrokk/Obsidian-Spotify-Playback/blob/main/images/SpotifyPlaybackSettings.PNG)
+
 Spotify Playback Features
    - Album Art
    - Track Name and Artist
