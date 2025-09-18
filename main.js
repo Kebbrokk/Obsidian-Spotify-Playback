@@ -202,30 +202,130 @@ class SpotifyView extends ItemView {
     return "Spotify Playback";
   }
 
-  async onOpen() {
-    const container = this.containerEl.children[1];
-    container.empty();
-    container.createEl("h2", { text: "Now Playing" });
+async onOpen() {
+    this.container = this.containerEl.children[1];
+    this.container.empty();
 
-    this.albumArt = container.createEl("img", { attr: { style: "max-width:100%;border-radius:8px" } });
-    this.trackText = container.createEl("div", { text: "No track playing" });
-    this.timeEl = container.createEl("div", { text: "0:00 / 0:00" });
+    this.container.createEl("h3", { text: "Now Playing" });
 
-    this.controls = container.createEl("div", { cls: "spotify-controls" });
-    this.playPauseBtn = this.controls.createEl("button", { text: "▶️" });
-    this.prevBtn = this.controls.createEl("button", { text: "⏮️" });
-    this.nextBtn = this.controls.createEl("button", { text: "⏭️" });
-    this.shuffleBtn = this.controls.createEl("button", { text: "🔀" });
-    this.repeatBtn = this.controls.createEl("button", { text: "🔁" });
+    if (this.plugin.settings.showAlbumArt) {
+      this.albumEl = this.container.createEl("img", {
+        attr: { src: "", style: "max-width:100%; border-radius:8px;" },
+      });
+    }
 
-    this.playPauseBtn.onclick = () => this.togglePlay();
-    this.prevBtn.onclick = () => this.apiCall("previous");
-    this.nextBtn.onclick = () => this.apiCall("next");
-    this.shuffleBtn.onclick = () => this.setShuffle(!this.currentShuffle);
-    this.repeatBtn.onclick = () => this.setRepeat(this.currentRepeat === "off" ? "context" : "off");
+    this.trackEl = this.container.createEl("div", { text: "Track: -" });
+    this.artistEl = this.container.createEl("div", { text: "Artist: -" });
 
-    await this.refreshNowPlaying();
-    this.interval = setInterval(() => this.refreshNowPlaying(), 1000);
+    if (this.plugin.settings.showTrackTime) {
+      this.timeEl = this.container.createEl("div", { text: "0:00 / 0:00" });
+    }
+
+    this.controlsEl = this.container.createEl("div", { cls: "spotify-controls" });
+
+    // Prev / Play / Next
+    if (this.plugin.settings.showPrevNext) {
+      this.prevBtn = this.controlsEl.createEl("button", { text: "⏮️" });
+      this.prevBtn.onclick = () =>
+        this.plugin.spotifyApiCall("POST", "me/player/previous");
+
+      this.playPauseBtn = this.controlsEl.createEl("button", { text: "▶️" });
+      this.playPauseBtn.onclick = async () => {
+        if (this.isPlaying) {
+          await this.plugin.spotifyApiCall("PUT", "me/player/pause");
+          this.isPlaying = false;
+        } else {
+          await this.plugin.spotifyApiCall("PUT", "me/player/play");
+          this.isPlaying = true;
+        }
+        this.updateButtonStates();
+      };
+
+      this.nextBtn = this.controlsEl.createEl("button", { text: "⏭️" });
+      this.nextBtn.onclick = () =>
+        this.plugin.spotifyApiCall("POST", "me/player/next");
+    }
+
+    // Shuffle / Repeat
+    if (this.plugin.settings.showShuffle) {
+      this.shuffleBtn = this.controlsEl.createEl("button", { text: "🔀" });
+      this.shuffleBtn.onclick = async () => {
+        const state = !this.currentShuffle;
+        await this.plugin.spotifyApiCall(
+          "PUT",
+          `me/player/shuffle?state=${state}`
+        );
+        this.currentShuffle = state;
+        this.updateButtonStates();
+      };
+    }
+
+    if (this.plugin.settings.showRepeat) {
+      this.repeatBtn = this.controlsEl.createEl("button", { text: "🔁" });
+      this.repeatBtn.onclick = async () => {
+        const nextState =
+          this.currentRepeat === "off"
+            ? "context"
+            : this.currentRepeat === "context"
+            ? "track"
+            : "off";
+        await this.plugin.spotifyApiCall(
+          "PUT",
+          `me/player/repeat?state=${nextState}`
+        );
+        this.currentRepeat = nextState;
+        this.updateButtonStates();
+      };
+    }
+
+    // Refresh loop
+    this.refreshInterval = setInterval(async () => {
+      const data = await this.plugin.spotifyApiCall("GET", "me/player");
+      if (data && data.item) {
+        this.trackEl.setText("Track: " + data.item.name);
+        this.artistEl.setText(
+          "Artist: " + data.item.artists.map((a) => a.name).join(", ")
+        );
+
+        if (this.plugin.settings.showAlbumArt && data.item.album.images[0]) {
+          this.albumEl.src = data.item.album.images[0].url;
+        }
+
+        if (this.plugin.settings.showTrackTime) {
+          const progress = Math.floor(data.progress_ms / 1000);
+          const duration = Math.floor(data.item.duration_ms / 1000);
+          this.timeEl.setText(
+            `${this.formatTime(progress)} / ${this.formatTime(duration)}`
+          );
+        }
+
+        // Sync shuffle / repeat / play state
+        this.currentShuffle = data.shuffle_state;
+        this.currentRepeat = data.repeat_state;
+        this.isPlaying = data.is_playing;
+        this.updateButtonStates();
+      }
+    }, 1000);
+  }
+
+  updateButtonStates() {
+    if (this.shuffleBtn) {
+      this.shuffleBtn.style.opacity = this.currentShuffle ? "1" : "0.4";
+    }
+    if (this.repeatBtn) {
+      this.repeatBtn.style.opacity = this.currentRepeat !== "off" ? "1" : "0.4";
+      this.repeatBtn.textContent =
+        this.currentRepeat === "track" ? "🔂" : "🔁";
+    }
+    if (this.playPauseBtn) {
+      this.playPauseBtn.textContent = this.isPlaying ? "⏸️" : "▶️";
+    }
+  }
+
+  formatTime(seconds) {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, "0")}`;
   }
 
   async onClose() {
