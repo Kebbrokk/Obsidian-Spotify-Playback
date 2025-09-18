@@ -1,7 +1,7 @@
 {
   "id": "spotify-playback",
   "name": "Spotify Playback",
-  "version": "1.1.1",
+  "version": "1.2",
   "minAppVersion": "1.3.5",
   "description": "Control and view Spotify playback inside Obsidian with Now Playing, album art, track time, and playback controls.",
   "author": "Kebb",
