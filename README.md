@@ -2,9 +2,10 @@
 Allow for Spotify to be played back through Obsidian. 
 
 **This Plugin requires a Spotify Premium and Developer account**
-![alt text](images/SpotifyPlaybackUIGif.gif)
 
-![alt text](images/SpotifyPlaybackSettings.PNG)
+![alt text](https://github.com/Kebbrokk/Obsidian-Spotify-Playback/blob/main/images/SpotifyPlaybackGif.gif)
+
+![alt text](https://github.com/Kebbrokk/Obsidian-Spotify-Playback/blob/main/images/SpotifyPlaybackSettings.PNG)
 
 Spotify Playback Features
    - Album Art
@@ -17,15 +18,14 @@ Spotify Playback Features
    - Updated Callback links and requirements
    - Button States updates
    - Track Time updates in real Time
-   - Persisent Listening Log
-        - Tags, Track Name and Artists, Time Played and Time Listened
 
 
 Future Features
 - Different Themes for Dark / Light. 
 - Better UI
 - Search for different categories.
-
+- To load the plugin into the sidebar (If you accidently disable then re-enable plugin.)
+- Data indentifiers that allow a history of tracks played, time listened, and amount played
 
 # Instructions
     Create a Spotify Developer Account [[https://developer.spotify.com/dashboard]]

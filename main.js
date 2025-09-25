@@ -26,9 +26,9 @@ function sanitizeForTag(str) {
     .replace(/^_|_$/g, "");
 }
 
-module.exports = class SpotifyPlaybackHelper extends Plugin {
+module.exports = class SpotifyPlayback extends Plugin {
   async onload() {
-    console.log("Loading Spotify Playback Helper");
+    console.log("Loading Spotify Playback");
 
     this.settings = Object.assign(
       {
@@ -68,7 +68,7 @@ module.exports = class SpotifyPlaybackHelper extends Plugin {
   }
 
   onunload() {
-    console.log("Unloading Spotify Playback Helper");
+    console.log("Unloading Spotify Playback");
     this.app.workspace.detachLeavesOfType(VIEW_TYPE_SPOTIFY);
   }
 
@@ -451,7 +451,7 @@ class SpotifySettingTab extends PluginSettingTab {
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    containerEl.createEl("h2", { text: "Spotify Playback Helper Settings" });
+    containerEl.createEl("h2", { text: "Spotify Playback Settings" });
 
     // Client ID (masked)
     new Setting(containerEl)
