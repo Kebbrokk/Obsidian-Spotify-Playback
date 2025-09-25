@@ -1,14 +1,76 @@
-/* Sidebar styles for Spotify playback helper */
-/* Minimal styles for the settings and control view */
-.spotify-playback-helper .status {
-  padding: 8px;
-  font-size: 13px;
-}
-.spotify-playback-helper .controls {
+
+/* Spotify Playback Helper Styles */
+
+.spotify-view {
   display: flex;
-  gap: 8px;
-  padding: 8px 0;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px;
+  font-family: system-ui, sans-serif;
+  text-align: center;
 }
-.spotify-playback-helper input[type="text"] {
+
+.spotify-view img {
+  border-radius: 8px;
+  margin-bottom: 12px;
+  max-width: 220px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+}
+
+.spotify-view h4 {
+  font-size: 1.2em;
+  font-weight: 600;
+  margin: 6px 0 4px 0;
+}
+
+.spotify-view div {
+  font-size: 0.9em;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.spotify-time {
   width: 100%;
+  font-family: monospace;
+  font-size: 0.9em;
+  margin: 6px 0;
+}
+
+/* Progress bar style */
+.spotify-progress-bar {
+  width: 100%;
+  height: 6px;
+  background-color: var(--background-modifier-border);
+  border-radius: 3px;
+  overflow: hidden;
+  margin: 4px 0 10px;
+}
+.spotify-progress {
+  height: 100%;
+  background: linear-gradient(90deg, #1db954, #1ed760);
+  width: 0%;
+  transition: width 0.5s linear;
+}
+
+/* Controls */
+.spotify-controls {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.spotify-controls button {
+  border: none;
+  background: var(--background-secondary);
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+  font-size: 1.2em;
+}
+
+.spotify-controls button:hover {
+  background: var(--background-modifier-hover);
+  transform: scale(1.05);
 }
