@@ -26,7 +26,6 @@ Spotify Playback Features
 
 Future Features
 - Different Themes for Dark / Light. 
-- Better UI
 - Search for different categories.
 
 # Instructions
