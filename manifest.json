@@ -1,11 +1,9 @@
-
 {
   "id": "spotify-playback",
   "name": "Spotify Playback",
   "version": "1.3.0",
   "minAppVersion": "0.15.0",
-  "description": "Control Spotify playback, show now playing info, and log listening history in Obsidian.",
+  "description": "Spotify playback integration with Now Playing panel, logging, and controls.",
   "author": "Kebb",
-  "authorUrl": "https://github.com/Kebbrokk/Obsidian-Spotify-Playback",
   "isDesktopOnly": true
 }

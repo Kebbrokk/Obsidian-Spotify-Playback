@@ -1,4 +1,3 @@
-
 /* eslint-disable */
 const { Plugin, PluginSettingTab, Setting, ItemView, Notice, TFile } = require("obsidian");
 const http = require("http");
@@ -6,14 +5,14 @@ const http = require("http");
 const VIEW_TYPE_SPOTIFY = "spotify-playback-view";
 const REDIRECT_URI = "http://127.0.0.1:4370/callback";
 const POLL_MS = 5000;
-const TOKEN_REFRESH_MS = 50 * 60e3;
+const TOKEN_REFRESH_MS = 50 * 60e3; // 50 minutes
 
 const OAUTH_SCOPES = [
   "user-read-playback-state",
   "user-modify-playback-state",
   "user-read-currently-playing",
   "user-read-recently-played",
-  "user-library-read"
+  "user-library-read",
 ].join(" ");
 
 function sanitizeForTag(str) {
@@ -26,10 +25,9 @@ function sanitizeForTag(str) {
     .replace(/^_|_$/g, "");
 }
 
-module.exports = class SpotifyPlayback extends Plugin {
+module.exports = class SpotifyPlaybackHelper extends Plugin {
   async onload() {
-    console.log("Loading Spotify Playback");
-
+    console.log("Loading Spotify Playback Helper");
     this.settings = Object.assign(
       {
         clientId: "",
@@ -43,12 +41,12 @@ module.exports = class SpotifyPlayback extends Plugin {
         showControls: true,
         showShuffle: true,
         showRepeat: true,
-        showPrevNext: true
+        showPrevNext: true,
       },
       (await this.loadData()) || {}
     );
 
-    // Logging/session markers
+    // logging state
     this.prevTrackId = null;
     this.prevProgress = 0;
     this.readyToLog = true;
@@ -59,16 +57,16 @@ module.exports = class SpotifyPlayback extends Plugin {
     this.addSettingTab(new SpotifySettingTab(this.app, this));
     this.addRibbonIcon("play", "Spotify Player", () => this.activateView());
 
-    // Intervals
+    // intervals
     this.registerInterval(window.setInterval(() => this.syncNowPlaying(), POLL_MS));
     this.registerInterval(window.setInterval(() => this.refreshAccessToken().catch(() => {}), TOKEN_REFRESH_MS));
 
-    // Initial sync
+    // initial sync
     this.syncNowPlaying();
   }
 
   onunload() {
-    console.log("Unloading Spotify Playback");
+    console.log("Unloading Spotify Playback Helper");
     this.app.workspace.detachLeavesOfType(VIEW_TYPE_SPOTIFY);
   }
 
@@ -81,7 +79,7 @@ module.exports = class SpotifyPlayback extends Plugin {
 
   async saveSettings() { await this.saveData(this.settings); }
 
-  // ===== Authentication =====
+  // ===== OAuth =====
   async startAuthFlow() {
     if (!this.settings.clientId || !this.settings.clientSecret) {
       new Notice("Set your Client ID and Secret first.");
@@ -108,7 +106,7 @@ module.exports = class SpotifyPlayback extends Plugin {
       client_id: this.settings.clientId,
       response_type: "code",
       redirect_uri: REDIRECT_URI,
-      scope: OAUTH_SCOPES
+      scope: OAUTH_SCOPES,
     }).toString();
 
     try { require("electron").shell.openExternal(authUrl); }
@@ -126,9 +124,8 @@ module.exports = class SpotifyPlayback extends Plugin {
       const res = await fetch("https://accounts.spotify.com/api/token", {
         method: "POST",
         headers: { Authorization: `Basic ${auth}`, "Content-Type": "application/x-www-form-urlencoded" },
-        body: params
+        body: params,
       });
-
       if (!res.ok) {
         console.error("Token exchange failed:", await res.text());
         new Notice("Spotify token exchange failed.");
@@ -157,9 +154,8 @@ module.exports = class SpotifyPlayback extends Plugin {
       const res = await fetch("https://accounts.spotify.com/api/token", {
         method: "POST",
         headers: { Authorization: `Basic ${auth}`, "Content-Type": "application/x-www-form-urlencoded" },
-        body: params
+        body: params,
       });
-
       if (!res.ok) {
         console.error("Failed to refresh token:", await res.text());
         return false;
@@ -177,13 +173,14 @@ module.exports = class SpotifyPlayback extends Plugin {
     }
   }
 
+  // ===== Spotify API helper =====
   async spotifyApiCall(method, endpoint, body) {
     if (!this.settings.accessToken) return null;
     try {
       const res = await fetch(`https://api.spotify.com/v1/${endpoint}`, {
         method,
         headers: { Authorization: `Bearer ${this.settings.accessToken}`, "Content-Type": "application/json" },
-        body: body ? JSON.stringify(body) : undefined
+        body: body ? JSON.stringify(body) : undefined,
       });
       if (res.status === 401) {
         if (await this.refreshAccessToken()) return this.spotifyApiCall(method, endpoint, body);
@@ -201,8 +198,8 @@ module.exports = class SpotifyPlayback extends Plugin {
     }
   }
 
+  // ===== Poll & update UI =====
   async syncNowPlaying() {
-    // Use me/player for full state (shuffle/repeat/progress)
     const data = await this.spotifyApiCall("GET", "me/player");
     if (!data || !data.item) {
       this.prevTrackId = null;
@@ -214,7 +211,6 @@ module.exports = class SpotifyPlayback extends Plugin {
       return;
     }
 
-    // Logging only when near-complete
     if (this.settings.logListening && data.is_playing) {
       await this.maybeLogTrack(data);
     }
@@ -224,6 +220,7 @@ module.exports = class SpotifyPlayback extends Plugin {
     }
   }
 
+  // ===== Logging logic (≥90% only, no duplicates, skips ignored) =====
   async maybeLogTrack(player) {
     const item = player.item;
     const id = item?.id;
@@ -231,7 +228,6 @@ module.exports = class SpotifyPlayback extends Plugin {
     const duration = item?.duration_ms ?? 0;
     if (!id || duration <= 0) return;
 
-    // Detect new session: track changed or rewound
     const isNewTrack = this.prevTrackId && id !== this.prevTrackId;
     const rewound = !isNewTrack && (progress + 5000 < this.prevProgress); // 5s tolerance
 
@@ -246,7 +242,6 @@ module.exports = class SpotifyPlayback extends Plugin {
     const nearlyComplete = progress >= Math.floor(duration * 0.9);
     if (!nearlyComplete || !this.readyToLog) return;
 
-    // Throttle duplicate logs for same track
     const now = Date.now();
     if (this.lastLoggedTrackId === id && (now - this.lastLoggedAt) < 20000) return;
 
@@ -267,37 +262,36 @@ module.exports = class SpotifyPlayback extends Plugin {
     const tags = `${artistTags} ${trackTag}`.trim();
     const durationMinutes = Math.max(1, Math.round((track.duration_ms || 0) / 60000));
 
-    // Parse existing table safely
+    // Read existing rows from table (robust)
     let rows = [];
     if (file instanceof TFile) {
       const content = await this.app.vault.read(file);
       const lines = content.split("\n").map((l) => l.trimEnd());
-      const hasHeader = lines.length >= 2 && lines[0].toLowerCase().includes("track | artist");
-      if (hasHeader) {
-        const body = lines.slice(2);
-        for (const line of body) {
-          if (!line.startsWith("|")) continue;
-          const parts = line.split("|").map((p) => p.trim());
-          // | Track | Artist(s) | Times Played | Time Listened (min) | Tags |
-          if (parts.length >= 6) rows.push([parts[1], parts[2], parts[3], parts[4], parts[5]]);
+      // only keep table body rows that start with '|' and aren't separators
+      const body = lines.filter((l) => l.startsWith("|") && !l.includes("---"));
+      for (const line of body) {
+        const parts = line.split("|").map((p) => p.trim());
+        // parts: ["", Track, Artist(s), Times, Time(min), Tags, ""]
+        if (parts.length >= 6 && parts[0] === "" && parts[1] !== "Track") {
+          rows.push([parts[1], parts[2], parts[3], parts[4], parts[5]]);
         }
       }
     }
 
-    // Merge/update row
+    // merge/update target row
     const idx = rows.findIndex((r) => r[0] === trackReadable && r[1] === artistsReadable);
     if (idx >= 0) {
       const timesPlayed = (parseInt(rows[idx][2]) || 0) + 1;
       const timeListened = (parseInt(rows[idx][3]) || 0) + durationMinutes;
-      rows[idx] = [trackReadable, artistsReadable, timesPlayed, timeListened, tags];
+      rows[idx] = [trackReadable, artistsReadable, String(timesPlayed), String(timeListened), tags];
     } else {
-      rows.push([trackReadable, artistsReadable, 1, durationMinutes, tags]);
+      rows.push([trackReadable, artistsReadable, "1", String(durationMinutes), tags]);
     }
 
     const out = [
       "| Track | Artist(s) | Times Played | Time Listened (min) | Tags |",
       "|-------|-----------|--------------|---------------------|------|",
-      ...rows.map((r) => `| ${r[0]} | ${r[1]} | ${r[2]} | ${r[3]} | ${r[4]} |`)
+      ...rows.map((r) => `| ${r[0]} | ${r[1]} | ${r[2]} | ${r[3]} | ${r[4]} |`),
     ];
 
     if (file instanceof TFile) await this.app.vault.modify(file, out.join("\n"));
@@ -338,10 +332,7 @@ class SpotifyView extends ItemView {
   }
 
   clearTimer() {
-    if (this.progressTimer) {
-      clearInterval(this.progressTimer);
-      this.progressTimer = null;
-    }
+    if (this.progressTimer) { clearInterval(this.progressTimer); this.progressTimer = null; }
   }
 
   async updateNowPlaying(data) {
@@ -360,15 +351,13 @@ class SpotifyView extends ItemView {
       img.style.boxShadow = "0 2px 8px rgba(0,0,0,0.25)";
     }
 
-    // Titles
+    // Title & artist(s)
     this.contentEl.createEl("h4", { text: track.name });
     this.contentEl.createEl("div", { text: (track.artists || []).map((a) => a.name).join(", ") });
 
     // Time + progress bar
     if (this.plugin.settings.showTrackTime) {
       const timeDiv = this.contentEl.createDiv({ cls: "spotify-time" });
-
-      // Styled progress bar
       const progressBar = this.contentEl.createDiv({ cls: "spotify-progress-bar" });
       const progressFill = progressBar.createDiv({ cls: "spotify-progress" });
 
@@ -403,7 +392,10 @@ class SpotifyView extends ItemView {
       // Prev
       if (this.plugin.settings.showPrevNext) {
         const prevBtn = controls.createEl("button", { text: "⏮" });
-        prevBtn.onclick = async () => { await this.plugin.spotifyApiCall("POST", "me/player/previous"); this.plugin.syncNowPlaying(); };
+        prevBtn.onclick = async () => {
+          await this.plugin.spotifyApiCall("POST", "me/player/previous");
+          this.plugin.syncNowPlaying();
+        };
       }
 
       // Play/Pause
@@ -416,7 +408,10 @@ class SpotifyView extends ItemView {
       // Next
       if (this.plugin.settings.showPrevNext) {
         const nextBtn = controls.createEl("button", { text: "⏭" });
-        nextBtn.onclick = async () => { await this.plugin.spotifyApiCall("POST", "me/player/next"); this.plugin.syncNowPlaying(); };
+        nextBtn.onclick = async () => {
+          await this.plugin.spotifyApiCall("POST", "me/player/next");
+          this.plugin.syncNowPlaying();
+        };
       }
 
       // Shuffle
@@ -430,10 +425,14 @@ class SpotifyView extends ItemView {
 
       // Repeat
       if (this.plugin.settings.showRepeat) {
-        const label = data.repeat_state === "off" ? "🔁 Off" : (data.repeat_state === "track" ? "🔂 Track" : "🔁 All");
+        const label =
+          data.repeat_state === "off" ? "🔁 Off" :
+          data.repeat_state === "track" ? "🔂 Track" : "🔁 All";
         const repeatBtn = controls.createEl("button", { text: label });
         repeatBtn.onclick = async () => {
-          const nextMode = data.repeat_state === "off" ? "context" : (data.repeat_state === "context" ? "track" : "off");
+          const nextMode =
+            data.repeat_state === "off" ? "context" :
+            (data.repeat_state === "context" ? "track" : "off");
           await this.plugin.spotifyApiCall("PUT", `me/player/repeat?state=${nextMode}`);
           this.plugin.syncNowPlaying();
         };
@@ -451,7 +450,7 @@ class SpotifySettingTab extends PluginSettingTab {
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    containerEl.createEl("h2", { text: "Spotify Playback Settings" });
+    containerEl.createEl("h2", { text: "Spotify Playback Helper Settings" });
 
     // Client ID (masked)
     new Setting(containerEl)
@@ -459,13 +458,13 @@ class SpotifySettingTab extends PluginSettingTab {
       .setDesc("Field is masked; re-enter to change.")
       .addText((t) =>
         t.setPlaceholder("Enter Client ID")
-         .setValue(this.plugin.settings.clientId ? "********" : "")
-         .onChange(async (val) => {
-           if (val && val !== "********") {
-             this.plugin.settings.clientId = val.trim();
-             await this.plugin.saveSettings();
-           }
-         })
+          .setValue(this.plugin.settings.clientId ? "********" : "")
+          .onChange(async (val) => {
+            if (val && val !== "********") {
+              this.plugin.settings.clientId = val.trim();
+              await this.plugin.saveSettings();
+            }
+          })
       );
 
     // Client Secret (masked)
@@ -474,13 +473,13 @@ class SpotifySettingTab extends PluginSettingTab {
       .setDesc("Field is masked; re-enter to change.")
       .addText((t) =>
         t.setPlaceholder("Enter Client Secret")
-         .setValue(this.plugin.settings.clientSecret ? "********" : "")
-         .onChange(async (val) => {
-           if (val && val !== "********") {
-             this.plugin.settings.clientSecret = val.trim();
-             await this.plugin.saveSettings();
-           }
-         })
+          .setValue(this.plugin.settings.clientSecret ? "********" : "")
+          .onChange(async (val) => {
+            if (val && val !== "********") {
+              this.plugin.settings.clientSecret = val.trim();
+              await this.plugin.saveSettings();
+            }
+          })
       );
 
     new Setting(containerEl)
@@ -512,64 +511,52 @@ class SpotifySettingTab extends PluginSettingTab {
 
     containerEl.createEl("h3", { text: "Display Options" });
 
-    new Setting(containerEl)
-      .setName("Show Album Art")
-      .addToggle((toggle) =>
-        toggle.setValue(this.plugin.settings.showAlbumArt).onChange(async (val) => {
-          this.plugin.settings.showAlbumArt = val;
-          await this.plugin.saveSettings();
-          this.plugin.notifySettingChange();
-        })
-      );
+    new Setting(containerEl).setName("Show Album Art").addToggle((toggle) =>
+      toggle.setValue(this.plugin.settings.showAlbumArt).onChange(async (val) => {
+        this.plugin.settings.showAlbumArt = val;
+        await this.plugin.saveSettings();
+        this.plugin.notifySettingChange();
+      })
+    );
 
-    new Setting(containerEl)
-      .setName("Show Track Time")
-      .addToggle((toggle) =>
-        toggle.setValue(this.plugin.settings.showTrackTime).onChange(async (val) => {
-          this.plugin.settings.showTrackTime = val;
-          await this.plugin.saveSettings();
-          this.plugin.notifySettingChange();
-        })
-      );
+    new Setting(containerEl).setName("Show Track Time").addToggle((toggle) =>
+      toggle.setValue(this.plugin.settings.showTrackTime).onChange(async (val) => {
+        this.plugin.settings.showTrackTime = val;
+        await this.plugin.saveSettings();
+        this.plugin.notifySettingChange();
+      })
+    );
 
-    new Setting(containerEl)
-      .setName("Show Controls")
-      .addToggle((toggle) =>
-        toggle.setValue(this.plugin.settings.showControls).onChange(async (val) => {
-          this.plugin.settings.showControls = val;
-          await this.plugin.saveSettings();
-          this.plugin.notifySettingChange();
-        })
-      );
+    new Setting(containerEl).setName("Show Controls").addToggle((toggle) =>
+      toggle.setValue(this.plugin.settings.showControls).onChange(async (val) => {
+        this.plugin.settings.showControls = val;
+        await this.plugin.saveSettings();
+        this.plugin.notifySettingChange();
+      })
+    );
 
-    new Setting(containerEl)
-      .setName("Show Shuffle Button")
-      .addToggle((toggle) =>
-        toggle.setValue(this.plugin.settings.showShuffle).onChange(async (val) => {
-          this.plugin.settings.showShuffle = val;
-          await this.plugin.saveSettings();
-          this.plugin.notifySettingChange();
-        })
-      );
+    new Setting(containerEl).setName("Show Shuffle Button").addToggle((toggle) =>
+      toggle.setValue(this.plugin.settings.showShuffle).onChange(async (val) => {
+        this.plugin.settings.showShuffle = val;
+        await this.plugin.saveSettings();
+        this.plugin.notifySettingChange();
+      })
+    );
 
-    new Setting(containerEl)
-      .setName("Show Repeat Button")
-      .addToggle((toggle) =>
-        toggle.setValue(this.plugin.settings.showRepeat).onChange(async (val) => {
-          this.plugin.settings.showRepeat = val;
-          await this.plugin.saveSettings();
-          this.plugin.notifySettingChange();
-        })
-      );
+    new Setting(containerEl).setName("Show Repeat Button").addToggle((toggle) =>
+      toggle.setValue(this.plugin.settings.showRepeat).onChange(async (val) => {
+        this.plugin.settings.showRepeat = val;
+        await this.plugin.saveSettings();
+        this.plugin.notifySettingChange();
+      })
+    );
 
-    new Setting(containerEl)
-      .setName("Show Previous/Next Buttons")
-      .addToggle((toggle) =>
-        toggle.setValue(this.plugin.settings.showPrevNext).onChange(async (val) => {
-          this.plugin.settings.showPrevNext = val;
-          await this.plugin.saveSettings();
-          this.plugin.notifySettingChange();
-        })
-      );
+    new Setting(containerEl).setName("Show Previous/Next Buttons").addToggle((toggle) =>
+      toggle.setValue(this.plugin.settings.showPrevNext).onChange(async (val) => {
+        this.plugin.settings.showPrevNext = val;
+        await this.plugin.saveSettings();
+        this.plugin.notifySettingChange();
+      })
+    );
   }
 }
