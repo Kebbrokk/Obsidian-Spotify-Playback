@@ -3,7 +3,7 @@ const { Plugin, PluginSettingTab, Setting, ItemView, Notice, TFile } = require("
 const http = require("http");
 
 const VIEW_TYPE_SPOTIFY = "spotify-playback-view";
-const REDIRECT_URI = "http://127.0.0.1:4370/callback";
+const REDIRECT_URI = "http://127.0.0.1:8888/callback";
 const POLL_MS = 5000;
 const TOKEN_REFRESH_MS = 50 * 60e3; // 50 minutes
 
