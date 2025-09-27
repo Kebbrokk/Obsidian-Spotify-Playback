@@ -1,5 +1,4 @@
-
-/* Spotify Playback Styles */
+/* Spotify Playback Helper Styles */
 
 .spotify-view {
   display: flex;
@@ -73,4 +72,17 @@
 .spotify-controls button:hover {
   background: var(--background-modifier-hover);
   transform: scale(1.05);
+}
+.spotify-track-title {
+  text-align: center;
+  font-size: 1.2em;
+  font-weight: 600;
+  margin-bottom: 0;
+}
+
+.spotify-track-artist {
+  text-align: center;
+  font-size: 0.95em;
+  opacity: 0.85;
+  margin-top: 2px;
 }
