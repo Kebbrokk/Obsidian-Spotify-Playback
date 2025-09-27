@@ -100,7 +100,7 @@ module.exports = class SpotifyPlaybackHelper extends Plugin {
         res.writeHead(404); res.end();
       }
     });
-    server.listen(4370, "127.0.0.1");
+    server.listen(8888, "127.0.0.1");
 
     const authUrl = "https://accounts.spotify.com/authorize?" + new URLSearchParams({
       client_id: this.settings.clientId,
