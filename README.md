@@ -21,7 +21,22 @@ Spotify Playback Features
          ** The Listening Log is editable for manual input.
          ** Listenning will save Full Track duration if listened ≥90%, if not it wil log exact progress.
 
+Sub-Features
+ * Listening Log Only
+    - If you connected your Spotify to Obsidian through the plugin, you will be able to track everything you've listened to into the Listening log.
+        - This works if you close out of the plugin once the Listening Log is created from the first track fully played.
+ * Obsidian still tracks Spotify through the plugin if you transfer your music to outside devices such as Alexa, Google Home, and your phone. You just need to leave Obsidian open for it to log.
+    - This was unintentional but with Spotify doing the handling of all the "playing", it still allows for connecting to devices. 
 
+** This plugin does not save any other information other than what is stated in the Data file.**
+
+Data File Tracking:
+cliendID
+clientSecret
+accessToken
+refreshToken
+
+These are controlled by Spotify and not Spotify-Playback Plugin.
 
 Future Features
 - Different Themes for Dark / Light. 
