@@ -164,6 +164,120 @@ module.exports = class SpotifyPlayback extends Plugin {
 
   /* ---------------- OAuth + API ---------------- */
 
+  async startAuthFlow() {
+    if (this.settings.refreshToken) {
+      await this.refreshAccessToken();
+      new Notice("Spotify: Access token refreshed!");
+      return;
+    }
+
+    const authUrl = `https://accounts.spotify.com/authorize?client_id=${this.settings.clientId}&response_type=code&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(OAUTH_SCOPES)}`;
+    window.open(authUrl, "_blank");
+
+    const server = http.createServer(async (req, res) => {
+      if (req.url.startsWith("/callback")) {
+        const urlObj = new URL(req.url, "http://127.0.0.1:8888");
+        const code = urlObj.searchParams.get("code");
+
+        res.writeHead(200, { "Content-Type": "text/plain" });
+        res.end("Spotify authentication complete! You can close this window.");
+
+        server.close();
+
+        if (code) {
+          await this.exchangeCodeForTokens(code);
+        }
+      }
+    });
+
+    server.listen(8888, () => {
+      console.log("Spotify: Listening for OAuth callback on http://127.0.0.1:8888/callback");
+    });
+  }
+
+  async exchangeCodeForTokens(code) {
+    try {
+      const params = new URLSearchParams();
+      params.append("grant_type", "authorization_code");
+      params.append("code", code);
+      params.append("redirect_uri", REDIRECT_URI);
+
+      const authHeader = btoa(`${this.settings.clientId}:${this.settings.clientSecret}`);
+
+      const res = await fetch("https://accounts.spotify.com/api/token", {
+        method: "POST",
+        headers: {
+          "Authorization": `Basic ${authHeader}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: params,
+      });
+
+      if (!res.ok) {
+        console.error("Spotify: Failed to exchange code", res.status, await res.text());
+        new Notice("Spotify: Failed to login. Check console for details.");
+        return;
+      }
+
+      const data = await res.json();
+
+      if (data.access_token) this.settings.accessToken = data.access_token;
+      if (data.refresh_token) this.settings.refreshToken = data.refresh_token;
+
+      await this.saveSettings();
+      new Notice("Spotify: Logged in successfully!");
+    } catch (e) {
+      console.error("Spotify: exchangeCodeForTokens error", e);
+      new Notice("Spotify: Error during login. See console for details.");
+    }
+  }
+
+  async refreshAccessToken() {
+    if (!this.settings.refreshToken) {
+      console.error("Spotify: No refresh token available.");
+      new Notice("Spotify: No refresh token available. Please login again.");
+      return false;
+    }
+
+    try {
+      const params = new URLSearchParams();
+      params.append("grant_type", "refresh_token");
+      params.append("refresh_token", this.settings.refreshToken);
+
+      const authHeader = btoa(`${this.settings.clientId}:${this.settings.clientSecret}`);
+
+      const res = await fetch("https://accounts.spotify.com/api/token", {
+        method: "POST",
+        headers: {
+          "Authorization": `Basic ${authHeader}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: params,
+      });
+
+      if (!res.ok) {
+        console.error("Spotify: Failed to refresh token", res.status, await res.text());
+        new Notice("Spotify: Failed to refresh token. Please login again.");
+        return false;
+      }
+
+      const data = await res.json();
+
+      if (data.access_token) {
+        this.settings.accessToken = data.access_token;
+        await this.saveSettings();
+        console.log("Spotify: Access token refreshed.");
+        return true;
+      }
+
+      return false;
+    } catch (e) {
+      console.error("Spotify: refreshAccessToken error", e);
+      new Notice("Spotify: Error refreshing token. See console for details.");
+      return false;
+    }
+  }
+
   async spotifyApiCall(method, endpoint, body) {
     if (!this.settings.accessToken) return null;
     try {
@@ -187,7 +301,7 @@ module.exports = class SpotifyPlayback extends Plugin {
       return null;
     }
   }
-
+  
   /* ---------------- Sync + Logging ---------------- */
 
   async syncNowPlaying() {
