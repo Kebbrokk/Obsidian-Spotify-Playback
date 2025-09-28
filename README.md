@@ -9,8 +9,8 @@ Spotify Playback Features
  * Track title & artist(s)
    * Album art (toggleable in settings)
    * Real-time progress bar & time counter (updates every second while playing)
-   * Playback controls: Play/Pause, Next, Previous, Shuffle, Repeat
-* Live Sync with Spotify state:
+   * Playback controls‡: Play/Pause, Next, Previous, Shuffle, Repeat
+* Live Sync with Spotify state‡:
    * Buttons (Play/Pause, Shuffle, Repeat) update to reflect Spotify’s actual state after each interaction.
    * State refreshes automatically every 5 seconds.
    - Internal Server for Token requests
@@ -43,6 +43,7 @@ Future Features
 - Search for different categories.
 - Encrypting the Data file. 
 
+‡
 **This Plugin requires a Spotify Premium (for full features) and Developer account**
 
 # Instructions
@@ -67,7 +68,6 @@ Open your terminal and search for Spotify Playback: Login to Spotify
 - Choose Obsidian as your application to open. [You do not need to click the Always Use option.]
 - Once connected open your terminal and search for Spotify Playback: Open Now Playing Sidebar.
 - This will allow for the plugin to be placed on either sidebar for viewing.
-- You can also use hotkeys and terminal commands to play spotify tracks.
 
 If you are playing something spotify it will show up. If not open spotify and select a playlist or album. You should be able to play Audiobooks and Podcasts as well.
 
@@ -76,7 +76,7 @@ If you have any questions, or requests please message me on GitHub.
 # FAQ
 - How often does this API refresh?
     - Spotify limits the refresh to 1 hour. This app automatically refreshes the token needed.
-- Why do I need Spotify Premium and Developer Account?
+- Why do I need Spotify Premium and Developer Account?‡
     - The reason for Spotify Premium is full features (Next / Prev, Shuffle, Repeat.) Spotify limits free account functionality. As for the developer account, is connection of API features from the Spotify Playback Plugin and Spotify. This allows for the scripts inside Spotify Playback to sync to your Spotify.
 - Why is my Time Listened in Listening log different than what Spotify states?
     - The listening log will only report progress listened, if not listened to ≥90%. So you can have a song that is 3:38 and you listened to 3:27 it will be considered a full listened, but if you don't reach the 90% threshhold the log will report the progress made. 

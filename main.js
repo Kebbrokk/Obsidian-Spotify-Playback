@@ -663,8 +663,6 @@ class SpotifySettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
-    new Setting(containerEl).setName("Spotify playback").setHeading();
-
     new Setting(containerEl)
       .setName("Client id")
       .setDesc("Enter your Spotify app client id.")
